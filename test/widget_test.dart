@@ -70,6 +70,21 @@ void main() {
       expect(AppTheme.surfaceDark, equals(const Color(0xFF2C2C2C)));
       expect(AppTheme.accentGold, equals(const Color(0xFFFFB300)));
     });
+
+    test('lightTheme primary color is #FFC107', () {
+      final theme = AppTheme.lightTheme;
+      expect(theme.colorScheme.primary, equals(const Color(0xFFFFC107)));
+    });
+
+    test('lightTheme brightness is light', () {
+      final theme = AppTheme.lightTheme;
+      expect(theme.brightness, equals(Brightness.light));
+    });
+
+    test('lightTheme scaffold background is #FAFAFA', () {
+      final theme = AppTheme.lightTheme;
+      expect(theme.scaffoldBackgroundColor, equals(const Color(0xFFFAFAFA)));
+    });
   });
 
   // ── Test 8: Currency Formatter (pure unit) ──

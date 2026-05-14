@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/item_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/currency_formatter.dart';
 import '../services/printer_service.dart';
 import '../database/database_helper.dart';
@@ -45,6 +46,24 @@ class _CashierScreenState extends State<CashierScreen> {
           ],
         ),
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) =>
+                      RotationTransition(turns: anim, child: child),
+                  child: Icon(
+                    themeProvider.isDark
+                        ? Icons.light_mode_rounded
+                        : Icons.dark_mode_rounded,
+                    key: ValueKey(themeProvider.isDark),
+                  ),
+                ),
+                onPressed: () => themeProvider.toggleTheme(),
+              );
+            },
+          ),
           Consumer<CartProvider>(
             builder: (context, cart, _) {
               return Badge(
@@ -152,7 +171,7 @@ class _CashierScreenState extends State<CashierScreen> {
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 0.85,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),
@@ -425,8 +444,9 @@ class _ItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasImage = imagePath != null && File(imagePath!).existsSync();
+    final cardColor = Theme.of(context).cardTheme.color ?? AppTheme.cardDark;
     return Material(
-      color: AppTheme.cardDark,
+      color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -442,17 +462,22 @@ class _ItemCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (hasImage)
-                ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.file(
-                    File(imagePath!),
-                    width: double.infinity,
-                    height: 70,
-                    fit: BoxFit.cover,
+                Expanded(
+                  flex: 3,
+                  child: ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Image.file(
+                        File(imagePath!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
               Expanded(
+                flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(

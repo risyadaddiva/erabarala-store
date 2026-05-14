@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'providers/item_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/transaction_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/cashier_screen.dart';
 import 'screens/item_management_screen.dart';
 import 'screens/report_screen.dart';
@@ -35,12 +36,19 @@ class ErabaralaStoreApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(
             create: (_) => TransactionProvider()..loadTransactions()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'Erabarala Gas Stove',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        home: const SplashScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Erabarala Gas Stove',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }
