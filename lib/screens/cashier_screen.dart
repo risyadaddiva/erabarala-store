@@ -6,6 +6,7 @@ import '../providers/transaction_provider.dart';
 import '../widgets/currency_formatter.dart';
 import '../services/printer_service.dart';
 import '../database/database_helper.dart';
+import '../theme/app_theme.dart';
 
 class CashierScreen extends StatefulWidget {
   const CashierScreen({super.key});
@@ -27,15 +28,33 @@ class _CashierScreenState extends State<CashierScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kasir'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipOval(
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('Erabarala Store'),
+          ],
+        ),
         actions: [
           Consumer<CartProvider>(
             builder: (context, cart, _) {
               return Badge(
-                label: Text('${cart.itemCount}'),
+                label: Text(
+                  '${cart.itemCount}',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
                 isLabelVisible: cart.itemCount > 0,
+                backgroundColor: Colors.redAccent,
                 child: IconButton(
-                  icon: const Icon(Icons.shopping_cart),
+                  icon: const Icon(Icons.shopping_cart_rounded),
                   onPressed: cart.itemCount > 0
                       ? () => _showCartSheet(context)
                       : null,
@@ -48,39 +67,57 @@ class _CashierScreenState extends State<CashierScreen> {
       ),
       body: Column(
         children: [
-          // Cart summary bar
+          // Cart summary bar (animated)
           Consumer<CartProvider>(
             builder: (context, cart, _) {
-              if (cart.itemCount == 0) return const SizedBox.shrink();
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: Row(
-                  children: [
-                    Text(
-                      '${cart.itemCount} item',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const Spacer(),
-                    Text(
-                      formatRupiah(cart.totalAmount),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton(
-                      onPressed: () => _showCartSheet(context),
-                      child: const Text('Bayar'),
-                    ),
-                  ],
-                ),
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                height: cart.itemCount > 0 ? 56 : 0,
+                curve: Curves.easeInOut,
+                child: cart.itemCount > 0
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryYellow.withValues(alpha: 0.2),
+                              AppTheme.accentGold.withValues(alpha: 0.1),
+                            ],
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.shopping_bag_rounded,
+                                color: AppTheme.primaryYellow, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${cart.itemCount} item',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            const Spacer(),
+                            Text(
+                              formatRupiah(cart.totalAmount),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppTheme.primaryYellow,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton(
+                              onPressed: () => _showCartSheet(context),
+                              child: const Text('Bayar'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               );
             },
           ),
-          // Item list
+          // Item grid
           Expanded(
             child: Consumer<ItemProvider>(
               builder: (context, provider, _) {
@@ -88,58 +125,60 @@ class _CashierScreenState extends State<CashierScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (provider.items.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Belum ada barang.\nTambahkan di menu Kelola Barang.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.storefront_rounded,
+                            size: 72, color: Colors.grey.shade600),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada barang',
+                          style: TextStyle(
+                              fontSize: 18, color: Colors.grey.shade400),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tambahkan di menu Barang',
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
                   );
                 }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(8),
+                return GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.4,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
                   itemCount: provider.items.length,
                   itemBuilder: (context, index) {
                     final item = provider.items[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(
-                          item.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          formatRupiah(item.price),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.add_circle, size: 32),
-                          color: Theme.of(context).colorScheme.primary,
-                          onPressed: () {
-                            context.read<CartProvider>().addToCart(item);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content:
-                                    Text('${item.name} ditambahkan ke keranjang'),
-                                duration: const Duration(milliseconds: 800),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                        ),
-                        onTap: () {
-                          context.read<CartProvider>().addToCart(item);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('${item.name} ditambahkan ke keranjang'),
-                              duration: const Duration(milliseconds: 800),
-                              behavior: SnackBarBehavior.floating,
+                    return _ItemCard(
+                      name: item.name,
+                      price: item.price,
+                      onTap: () {
+                        context.read<CartProvider>().addToCart(item);
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle,
+                                    color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text('${item.name} +1'),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                            duration: const Duration(milliseconds: 600),
+                            backgroundColor: Colors.green.shade700,
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -165,27 +204,38 @@ class _CashierScreenState extends State<CashierScreen> {
             builder: (context, cart, _) {
               return Column(
                 children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade600,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   Container(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
+                        Icon(Icons.shopping_cart_rounded,
+                            color: AppTheme.primaryYellow),
+                        const SizedBox(width: 8),
                         const Text(
                           'Keranjang',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const Spacer(),
-                        TextButton(
+                        TextButton.icon(
                           onPressed: () {
                             cart.clearCart();
                             Navigator.pop(context);
                           },
-                          child: const Text(
-                            'Kosongkan',
-                            style: TextStyle(color: Colors.red),
-                          ),
+                          icon: const Icon(Icons.delete_sweep,
+                              color: Colors.redAccent, size: 18),
+                          label: const Text('Kosongkan',
+                              style: TextStyle(color: Colors.redAccent)),
                         ),
                       ],
                     ),
@@ -197,36 +247,50 @@ class _CashierScreenState extends State<CashierScreen> {
                       itemCount: cart.cartItems.length,
                       itemBuilder: (context, index) {
                         final cartItem = cart.cartItems[index];
-                        return ListTile(
-                          title: Text(cartItem.item.name),
-                          subtitle: Text(formatRupiah(cartItem.subtotal)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => cart.decrementQuantity(
-                                    cartItem.item.id!),
-                              ),
-                              Text(
-                                '${cartItem.quantity}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          child: ListTile(
+                            title: Text(
+                              cartItem.item.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              formatRupiah(cartItem.subtotal),
+                              style: TextStyle(color: AppTheme.primaryYellow),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _CircleButton(
+                                  icon: Icons.remove,
+                                  onTap: () => cart
+                                      .decrementQuantity(cartItem.item.id!),
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
-                                onPressed: () =>
-                                    cart.incrementQuantity(cartItem.item.id!),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Colors.red),
-                                onPressed: () =>
-                                    cart.removeFromCart(cartItem.item.id!),
-                              ),
-                            ],
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    '${cartItem.quantity}',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                _CircleButton(
+                                  icon: Icons.add,
+                                  onTap: () => cart
+                                      .incrementQuantity(cartItem.item.id!),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.redAccent),
+                                  onPressed: () =>
+                                      cart.removeFromCart(cartItem.item.id!),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -243,21 +307,19 @@ class _CashierScreenState extends State<CashierScreen> {
                             const Text(
                               'Total:',
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                             Text(
                               formatRupiah(cart.totalAmount),
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
+                                color: AppTheme.primaryYellow,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Row(
                           children: [
                             Expanded(
@@ -268,8 +330,8 @@ class _CashierScreenState extends State<CashierScreen> {
                                 icon: const Icon(Icons.money),
                                 label: const Text('Cash'),
                                 style: FilledButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                 ),
                               ),
                             ),
@@ -282,9 +344,10 @@ class _CashierScreenState extends State<CashierScreen> {
                                 icon: const Icon(Icons.qr_code),
                                 label: const Text('QRIS'),
                                 style: FilledButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                   backgroundColor: Colors.deepPurple,
+                                  foregroundColor: Colors.white,
                                 ),
                               ),
                             ),
@@ -312,7 +375,6 @@ class _CashierScreenState extends State<CashierScreen> {
       method,
     );
 
-    // Try to print receipt
     try {
       final printerConnected = await PrinterService.instance.isConnected();
       if (printerConnected) {
@@ -323,21 +385,120 @@ class _CashierScreenState extends State<CashierScreen> {
             transactions.firstWhere((t) => t.id == transactionId);
         await PrinterService.instance.printReceipt(transaction, details);
       }
-    } catch (_) {
-      // Printer not connected, skip silently
-    }
+    } catch (_) {}
 
     cart.clearCart();
 
     if (context.mounted) {
-      Navigator.pop(context); // Close bottom sheet
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Transaksi #$transactionId berhasil! ($method)'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 8),
+              Text('Transaksi #$transactionId berhasil! ($method)'),
+            ],
+          ),
+          backgroundColor: Colors.green.shade700,
         ),
       );
     }
+  }
+}
+
+class _ItemCard extends StatelessWidget {
+  final String name;
+  final double price;
+  final VoidCallback onTap;
+
+  const _ItemCard({
+    required this.name,
+    required this.price,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.cardDark,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: AppTheme.primaryYellow.withValues(alpha: 0.2),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: AppTheme.primaryYellow.withValues(alpha: 0.1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      formatRupiah(price),
+                      style: TextStyle(
+                        color: AppTheme.primaryYellow,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryYellow.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.add_rounded,
+                        size: 20, color: AppTheme.primaryYellow),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppTheme.primaryYellow.withValues(alpha: 0.2),
+        ),
+        child: Icon(icon, size: 18, color: AppTheme.primaryYellow),
+      ),
+    );
   }
 }

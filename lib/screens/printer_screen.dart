@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../services/printer_service.dart';
+import '../theme/app_theme.dart';
 
 class PrinterScreen extends StatefulWidget {
   const PrinterScreen({super.key});
@@ -41,7 +42,6 @@ class _PrinterScreenState extends State<PrinterScreen> {
           SnackBar(
             content: Text('Error scanning: $e'),
             backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -62,7 +62,6 @@ class _PrinterScreenState extends State<PrinterScreen> {
           SnackBar(
             content: Text('Terhubung ke ${device.name}'),
             backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -73,7 +72,6 @@ class _PrinterScreenState extends State<PrinterScreen> {
           SnackBar(
             content: Text('Gagal menghubungkan: $e'),
             backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -92,23 +90,43 @@ class _PrinterScreenState extends State<PrinterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pengaturan Printer'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.print_rounded,
+                color: AppTheme.primaryYellow, size: 24),
+            const SizedBox(width: 8),
+            const Text('Pengaturan Printer'),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Connection status card
+            // Connection status
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(
-                      _isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
-                      size: 40,
-                      color: _isConnected ? Colors.blue : Colors.grey,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isConnected
+                            ? Colors.blue.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.2),
+                      ),
+                      child: Icon(
+                        _isConnected
+                            ? Icons.bluetooth_connected
+                            : Icons.bluetooth_disabled,
+                        size: 28,
+                        color: _isConnected ? Colors.blue : Colors.grey,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -116,20 +134,18 @@ class _PrinterScreenState extends State<PrinterScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _isConnected
-                                ? 'Terhubung'
-                                : 'Tidak Terhubung',
+                            _isConnected ? 'Terhubung' : 'Tidak Terhubung',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color:
-                                  _isConnected ? Colors.blue : Colors.grey,
+                              color: _isConnected ? Colors.blue : Colors.grey,
                             ),
                           ),
                           if (_connectedDevice != null)
                             Text(
                               _connectedDevice!.name ?? 'Unknown',
-                              style: const TextStyle(color: Colors.grey),
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 13),
                             ),
                         ],
                       ),
@@ -138,7 +154,8 @@ class _PrinterScreenState extends State<PrinterScreen> {
                       FilledButton(
                         onPressed: _disconnect,
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
                         ),
                         child: const Text('Putus'),
                       ),
@@ -155,63 +172,75 @@ class _PrinterScreenState extends State<PrinterScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.search),
-                label: Text(
-                    _isLoading ? 'Mencari...' : 'Cari Perangkat Bluetooth'),
+                    : const Icon(Icons.search_rounded),
+                label: Text(_isLoading ? 'Mencari...' : 'Scan Perangkat'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             if (_devices.isNotEmpty) ...[
-              const Text(
-                'Perangkat Ditemukan:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              Text(
+                'Perangkat Ditemukan (${_devices.length})',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _devices.length,
-                  itemBuilder: (context, index) {
-                    final device = _devices[index];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.print),
-                        title: Text(device.name ?? 'Unknown'),
-                        subtitle: Text(device.address ?? ''),
-                        trailing: FilledButton(
-                          onPressed: () => _connectDevice(device),
-                          child: const Text('Hubungkan'),
-                        ),
+            ],
+            Expanded(
+              child: _devices.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bluetooth_searching,
+                              size: 64, color: Colors.grey.shade600),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Tekan "Scan Perangkat" untuk\nmencari printer Bluetooth',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.grey.shade500),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ),
-            ] else if (!_isLoading)
-              const Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bluetooth_searching,
-                          size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Tekan tombol di atas untuk\nmencari printer Bluetooth',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    )
+                  : ListView.builder(
+                      itemCount: _devices.length,
+                      itemBuilder: (context, index) {
+                        final device = _devices[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  Colors.blue.withValues(alpha: 0.2),
+                              child: const Icon(Icons.bluetooth,
+                                  color: Colors.blue, size: 20),
+                            ),
+                            title: Text(
+                              device.name ?? 'Unknown Device',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              device.address ?? '',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: FilledButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => _connectDevice(device),
+                              child: const Text('Hubungkan'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),

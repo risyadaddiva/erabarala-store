@@ -6,6 +6,7 @@ import '../models/transaction.dart' as model;
 import '../models/transaction_detail.dart';
 import '../widgets/currency_formatter.dart';
 import '../services/printer_service.dart';
+import '../theme/app_theme.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -28,7 +29,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat Transaksi'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long_rounded,
+                color: AppTheme.primaryYellow, size: 24),
+            const SizedBox(width: 8),
+            const Text('Riwayat Transaksi'),
+          ],
+        ),
       ),
       body: Consumer<TransactionProvider>(
         builder: (context, provider, _) {
@@ -36,18 +45,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (provider.transactions.isEmpty) {
-            return const Center(
-              child: Text(
-                'Belum ada transaksi.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.receipt_long_rounded,
+                      size: 72, color: Colors.grey.shade600),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada transaksi',
+                    style:
+                        TextStyle(fontSize: 18, color: Colors.grey.shade400),
+                  ),
+                ],
               ),
             );
           }
           return ListView.builder(
+            padding: const EdgeInsets.only(top: 8),
             itemCount: provider.transactions.length,
             itemBuilder: (context, index) {
               final tx = provider.transactions[index];
-              return _TransactionTile(transaction: tx);
+              return _TransactionTile(transaction: tx, index: index);
             },
           );
         },
@@ -58,26 +77,25 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
 class _TransactionTile extends StatelessWidget {
   final model.Transaction transaction;
+  final int index;
 
-  const _TransactionTile({required this.transaction});
+  const _TransactionTile({required this.transaction, required this.index});
 
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final isCash = transaction.paymentMethod == 'Cash';
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: transaction.paymentMethod == 'Cash'
-              ? Colors.green.shade100
-              : Colors.purple.shade100,
+          backgroundColor: isCash
+              ? Colors.green.withValues(alpha: 0.2)
+              : Colors.purple.withValues(alpha: 0.2),
           child: Icon(
-            transaction.paymentMethod == 'Cash'
-                ? Icons.money
-                : Icons.qr_code,
-            color: transaction.paymentMethod == 'Cash'
-                ? Colors.green
-                : Colors.purple,
+            isCash ? Icons.money : Icons.qr_code,
+            color: isCash ? Colors.green : Colors.purple,
+            size: 20,
           ),
         ),
         title: Text(
@@ -86,8 +104,9 @@ class _TransactionTile extends StatelessWidget {
         ),
         subtitle: Text(
           '${dateFormat.format(transaction.dateTime)} | ${transaction.paymentMethod}',
+          style: const TextStyle(fontSize: 12),
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(Icons.chevron_right, color: Colors.grey.shade500),
         onTap: () => _showTransactionDetail(context),
       ),
     );
@@ -95,11 +114,8 @@ class _TransactionTile extends StatelessWidget {
 
   Future<void> _showTransactionDetail(BuildContext context) async {
     final provider = context.read<TransactionProvider>();
-    final details =
-        await provider.getTransactionDetails(transaction.id!);
-
+    final details = await provider.getTransactionDetails(transaction.id!);
     if (!context.mounted) return;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -123,6 +139,7 @@ class _TransactionDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final isCash = transaction.paymentMethod == 'Cash';
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
       minChildSize: 0.3,
@@ -131,6 +148,15 @@ class _TransactionDetailSheet extends StatelessWidget {
       builder: (_, scrollController) {
         return Column(
           children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade600,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             Container(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -142,16 +168,22 @@ class _TransactionDetailSheet extends StatelessWidget {
                       Text(
                         'Transaksi #${transaction.id}',
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Chip(
-                        label: Text(transaction.paymentMethod),
-                        backgroundColor:
-                            transaction.paymentMethod == 'Cash'
-                                ? Colors.green.shade100
-                                : Colors.purple.shade100,
+                        label: Text(
+                          transaction.paymentMethod,
+                          style: TextStyle(
+                            color: isCash
+                                ? Colors.green.shade900
+                                : Colors.purple.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        backgroundColor: isCash
+                            ? Colors.green.withValues(alpha: 0.2)
+                            : Colors.purple.withValues(alpha: 0.2),
+                        side: BorderSide.none,
                       ),
                     ],
                   ),
@@ -170,13 +202,33 @@ class _TransactionDetailSheet extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final detail = details[index];
                   return ListTile(
-                    title: Text(detail.itemName ?? 'Item #${detail.itemId}'),
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          AppTheme.primaryYellow.withValues(alpha: 0.15),
+                      radius: 18,
+                      child: Text(
+                        '${detail.quantity}x',
+                        style: TextStyle(
+                          color: AppTheme.primaryYellow,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      detail.itemName ?? 'Item #${detail.itemId}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                     subtitle: Text(
                       '${detail.quantity} x ${formatRupiah(detail.itemPrice ?? 0)}',
+                      style: const TextStyle(fontSize: 12),
                     ),
                     trailing: Text(
                       formatRupiah(detail.subtotal),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryYellow,
+                      ),
                     ),
                   );
                 },
@@ -193,16 +245,14 @@ class _TransactionDetailSheet extends StatelessWidget {
                       const Text(
                         'Total:',
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         formatRupiah(transaction.totalAmount),
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: AppTheme.primaryYellow,
                         ),
                       ),
                     ],
@@ -212,7 +262,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () => _printReceipt(context),
-                      icon: const Icon(Icons.print),
+                      icon: const Icon(Icons.print_rounded),
                       label: const Text('Cetak Nota'),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -238,7 +288,6 @@ class _TransactionDetailSheet extends StatelessWidget {
               content: Text(
                   'Printer tidak terhubung. Hubungkan di menu Printer.'),
               backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -250,7 +299,6 @@ class _TransactionDetailSheet extends StatelessWidget {
           const SnackBar(
             content: Text('Nota berhasil dicetak!'),
             backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -260,7 +308,6 @@ class _TransactionDetailSheet extends StatelessWidget {
           SnackBar(
             content: Text('Gagal mencetak: $e'),
             backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }

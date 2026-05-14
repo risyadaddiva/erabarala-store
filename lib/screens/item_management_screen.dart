@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../providers/item_provider.dart';
 import '../widgets/currency_formatter.dart';
+import '../theme/app_theme.dart';
 
 class ItemManagementScreen extends StatelessWidget {
   const ItemManagementScreen({super.key});
@@ -12,11 +13,20 @@ class ItemManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kelola Barang'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inventory_2_rounded,
+                color: AppTheme.primaryYellow, size: 24),
+            const SizedBox(width: 8),
+            const Text('Kelola Barang'),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showItemDialog(context),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Tambah'),
       ),
       body: Consumer<ItemProvider>(
         builder: (context, provider, _) {
@@ -24,45 +34,79 @@ class ItemManagementScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (provider.items.isEmpty) {
-            return const Center(
-              child: Text(
-                'Belum ada barang.\nTekan + untuk menambahkan.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_shopping_cart_rounded,
+                      size: 72, color: Colors.grey.shade600),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada barang',
+                    style:
+                        TextStyle(fontSize: 18, color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tekan + untuk menambahkan',
+                    style:
+                        TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
+                ],
               ),
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
+            padding: const EdgeInsets.only(bottom: 80, top: 8),
             itemCount: provider.items.length,
             itemBuilder: (context, index) {
               final item = provider.items[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: ListTile(
-                  title: Text(
-                    item.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    formatRupiah(item.price),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
+              return AnimatedContainer(
+                duration: Duration(milliseconds: 200 + index * 30),
+                child: Card(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          AppTheme.primaryYellow.withValues(alpha: 0.15),
+                      child: Text(
+                        item.name.isNotEmpty
+                            ? item.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          color: AppTheme.primaryYellow,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showItemDialog(context, item: item),
+                    title: Text(
+                      item.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      formatRupiah(item.price),
+                      style: TextStyle(
+                        color: AppTheme.primaryYellow,
+                        fontWeight: FontWeight.w500,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _confirmDelete(context, item),
-                      ),
-                    ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded,
+                              color: Colors.blueAccent),
+                          onPressed: () =>
+                              _showItemDialog(context, item: item),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_rounded,
+                              color: Colors.redAccent),
+                          onPressed: () => _confirmDelete(context, item),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -84,7 +128,16 @@ class ItemManagementScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isEditing ? 'Edit Barang' : 'Tambah Barang'),
+        title: Row(
+          children: [
+            Icon(
+              isEditing ? Icons.edit_rounded : Icons.add_circle_rounded,
+              color: AppTheme.primaryYellow,
+            ),
+            const SizedBox(width: 8),
+            Text(isEditing ? 'Edit Barang' : 'Tambah Barang'),
+          ],
+        ),
         content: Form(
           key: formKey,
           child: Column(
@@ -94,7 +147,7 @@ class ItemManagementScreen extends StatelessWidget {
                 controller: nameController,
                 decoration: const InputDecoration(
                   labelText: 'Nama Barang',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.label_rounded),
                 ),
                 textCapitalization: TextCapitalization.words,
                 validator: (value) {
@@ -109,7 +162,7 @@ class ItemManagementScreen extends StatelessWidget {
                 controller: priceController,
                 decoration: const InputDecoration(
                   labelText: 'Harga',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money_rounded),
                   prefixText: 'Rp ',
                 ),
                 keyboardType: TextInputType.number,
@@ -160,7 +213,13 @@ class ItemManagementScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Barang'),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Hapus Barang'),
+          ],
+        ),
         content: Text('Hapus "${item.name}" dari daftar?'),
         actions: [
           TextButton(
@@ -168,7 +227,10 @@ class ItemManagementScreen extends StatelessWidget {
             child: const Text('Batal'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               context.read<ItemProvider>().deleteItem(item.id!);
               Navigator.pop(ctx);
