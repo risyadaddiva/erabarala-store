@@ -65,4 +65,21 @@ class TransactionProvider extends ChangeNotifier {
   Future<int> getTransactionCount(DateTime start, DateTime end) async {
     return await _db.getTransactionCount(start, end);
   }
+
+  Future<int> getTotalQuantitySold(DateTime start, DateTime end) async {
+    return await _db.getTotalQuantitySold(start, end);
+  }
+
+  Future<List<Map<String, dynamic>>> getItemSalesSummary(
+      DateTime start, DateTime end) async {
+    return await _db.getItemSalesSummary(start, end);
+  }
+
+  Future<List<model.Transaction>> getTransactionsByDateRangeAndItem(
+    DateTime start,
+    DateTime end,
+    int itemId,
+  ) async {
+    return await _db.getTransactionsByDateRangeAndItem(start, end, itemId);
+  }
 }

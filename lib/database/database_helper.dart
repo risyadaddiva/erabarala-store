@@ -21,8 +21,9 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -31,7 +32,8 @@ class DatabaseHelper {
       CREATE TABLE items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        price REAL NOT NULL
+        price REAL NOT NULL,
+        image_path TEXT
       )
     ''');
 
@@ -55,6 +57,12 @@ class DatabaseHelper {
         FOREIGN KEY (item_id) REFERENCES items (id)
       )
     ''');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE items ADD COLUMN image_path TEXT');
+    }
   }
 
   // ── Item CRUD ──
@@ -160,6 +168,48 @@ class DatabaseHelper {
       [start.toIso8601String(), end.toIso8601String()],
     );
     return (result.first['count'] as int);
+  }
+
+  Future<int> getTotalQuantitySold(DateTime start, DateTime end) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(td.quantity), 0) as total_qty
+      FROM transaction_details td
+      INNER JOIN transactions t ON td.transaction_id = t.id
+      WHERE t.date_time >= ? AND t.date_time <= ?
+    ''', [start.toIso8601String(), end.toIso8601String()]);
+    return (result.first['total_qty'] as num).toInt();
+  }
+
+  Future<List<Map<String, dynamic>>> getItemSalesSummary(
+      DateTime start, DateTime end) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT i.id, i.name, COALESCE(SUM(td.quantity), 0) as qty_sold,
+             COALESCE(SUM(td.subtotal), 0) as total_revenue
+      FROM items i
+      LEFT JOIN transaction_details td ON i.id = td.item_id
+      LEFT JOIN transactions t ON td.transaction_id = t.id
+        AND t.date_time >= ? AND t.date_time <= ?
+      GROUP BY i.id, i.name
+      ORDER BY qty_sold DESC
+    ''', [start.toIso8601String(), end.toIso8601String()]);
+  }
+
+  Future<List<model.Transaction>> getTransactionsByDateRangeAndItem(
+    DateTime start,
+    DateTime end,
+    int itemId,
+  ) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT DISTINCT t.*
+      FROM transactions t
+      INNER JOIN transaction_details td ON t.id = td.transaction_id
+      WHERE t.date_time >= ? AND t.date_time <= ? AND td.item_id = ?
+      ORDER BY t.date_time DESC
+    ''', [start.toIso8601String(), end.toIso8601String(), itemId]);
+    return result.map((map) => model.Transaction.fromMap(map)).toList();
   }
 
   Future<void> close() async {

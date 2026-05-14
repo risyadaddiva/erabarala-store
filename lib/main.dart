@@ -37,7 +37,7 @@ class ErabaralaStoreApp extends StatelessWidget {
             create: (_) => TransactionProvider()..loadTransactions()),
       ],
       child: MaterialApp(
-        title: 'Erabarala Store',
+        title: 'Erabarala Gas Stove',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         home: const SplashScreen(),
@@ -129,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     const Text(
-                      'STORE POS',
+                      'GAS STOVE POS',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,

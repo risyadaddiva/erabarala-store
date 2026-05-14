@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/item_provider.dart';
@@ -40,7 +41,7 @@ class _CashierScreenState extends State<CashierScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text('Erabarala Store'),
+            const Text('Erabarala Gas Stove'),
           ],
         ),
         actions: [
@@ -151,7 +152,7 @@ class _CashierScreenState extends State<CashierScreen> {
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.1,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),
@@ -161,6 +162,7 @@ class _CashierScreenState extends State<CashierScreen> {
                     return _ItemCard(
                       name: item.name,
                       price: item.price,
+                      imagePath: item.imagePath,
                       onTap: () {
                         context.read<CartProvider>().addToCart(item);
                         ScaffoldMessenger.of(context).clearSnackBars();
@@ -410,16 +412,19 @@ class _CashierScreenState extends State<CashierScreen> {
 class _ItemCard extends StatelessWidget {
   final String name;
   final double price;
+  final String? imagePath;
   final VoidCallback onTap;
 
   const _ItemCard({
     required this.name,
     required this.price,
+    this.imagePath,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = imagePath != null && File(imagePath!).existsSync();
     return Material(
       color: AppTheme.cardDark,
       borderRadius: BorderRadius.circular(16),
@@ -428,7 +433,6 @@ class _ItemCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         splashColor: AppTheme.primaryYellow.withValues(alpha: 0.2),
         child: Container(
-          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -436,40 +440,62 @@ class _ItemCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+              if (hasImage)
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: Image.file(
+                    File(imagePath!),
+                    width: double.infinity,
+                    height: 70,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Text(
-                      formatRupiah(price),
-                      style: TextStyle(
-                        color: AppTheme.primaryYellow,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        maxLines: hasImage ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              formatRupiah(price),
+                              style: TextStyle(
+                                color: AppTheme.primaryYellow,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryYellow
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.add_rounded,
+                                size: 18, color: AppTheme.primaryYellow),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryYellow.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.add_rounded,
-                        size: 20, color: AppTheme.primaryYellow),
-                  ),
-                ],
+                ),
               ),
             ],
           ),

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/item_provider.dart';
 import '../models/transaction.dart' as model;
 import '../widgets/currency_formatter.dart';
 import '../theme/app_theme.dart';
 
-enum ReportPeriod { daily, weekly, monthly }
+enum ReportPeriod { daily, monthly, custom }
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -20,9 +21,14 @@ class _ReportScreenState extends State<ReportScreen>
   ReportPeriod _selectedPeriod = ReportPeriod.daily;
   double _totalRevenue = 0;
   int _transactionCount = 0;
+  int _totalQuantitySold = 0;
   bool _isLoading = true;
   DateTime _selectedDate = DateTime.now();
+  DateTime? _customStart;
+  DateTime? _customEnd;
+  int? _selectedItemId;
   List<model.Transaction> _transactions = [];
+  List<Map<String, dynamic>> _itemSales = [];
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
 
@@ -34,7 +40,10 @@ class _ReportScreenState extends State<ReportScreen>
       duration: const Duration(milliseconds: 600),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadReport());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ItemProvider>().loadItems();
+      _loadReport();
+    });
   }
 
   @override
@@ -50,17 +59,18 @@ class _ReportScreenState extends State<ReportScreen>
         final start = DateTime(now.year, now.month, now.day);
         final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
         return DateTimeRange(start: start, end: end);
-      case ReportPeriod.weekly:
-        final weekday = now.weekday;
-        final start = DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: weekday - 1));
-        final end = DateTime(
-            start.year, start.month, start.day + 6, 23, 59, 59, 999);
-        return DateTimeRange(start: start, end: end);
       case ReportPeriod.monthly:
         final start = DateTime(now.year, now.month, 1);
         final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
         return DateTimeRange(start: start, end: end);
+      case ReportPeriod.custom:
+        final start = _customStart ?? DateTime(now.year, now.month, now.day);
+        final end = _customEnd ??
+            DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        return DateTimeRange(
+          start: DateTime(start.year, start.month, start.day),
+          end: DateTime(end.year, end.month, end.day, 23, 59, 59, 999),
+        );
     }
   }
 
@@ -73,12 +83,23 @@ class _ReportScreenState extends State<ReportScreen>
       _totalRevenue = await provider.getTotalRevenue(range.start, range.end);
       _transactionCount =
           await provider.getTransactionCount(range.start, range.end);
-      _transactions =
-          await provider.getTransactionsByDateRange(range.start, range.end);
+      _totalQuantitySold =
+          await provider.getTotalQuantitySold(range.start, range.end);
+      _itemSales = await provider.getItemSalesSummary(range.start, range.end);
+
+      if (_selectedItemId != null) {
+        _transactions = await provider.getTransactionsByDateRangeAndItem(
+            range.start, range.end, _selectedItemId!);
+      } else {
+        _transactions =
+            await provider.getTransactionsByDateRange(range.start, range.end);
+      }
     } catch (e) {
       _totalRevenue = 0;
       _transactionCount = 0;
+      _totalQuantitySold = 0;
       _transactions = [];
+      _itemSales = [];
     }
     if (mounted) {
       setState(() => _isLoading = false);
@@ -92,14 +113,14 @@ class _ReportScreenState extends State<ReportScreen>
     switch (_selectedPeriod) {
       case ReportPeriod.daily:
         return dateFormat.format(range.start);
-      case ReportPeriod.weekly:
-        return '${dateFormat.format(range.start)} - ${dateFormat.format(range.end)}';
       case ReportPeriod.monthly:
         return DateFormat('MMMM yyyy', 'id_ID').format(range.start);
+      case ReportPeriod.custom:
+        return '${dateFormat.format(range.start)} - ${dateFormat.format(range.end)}';
     }
   }
 
-  Future<void> _pickDateRange() async {
+  Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -119,6 +140,38 @@ class _ReportScreenState extends State<ReportScreen>
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
+      _loadReport();
+    }
+  }
+
+  Future<void> _pickCustomDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: _customStart != null && _customEnd != null
+          ? DateTimeRange(start: _customStart!, end: _customEnd!)
+          : DateTimeRange(
+              start: DateTime.now().subtract(const Duration(days: 7)),
+              end: DateTime.now(),
+            ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: AppTheme.primaryYellow,
+                  onPrimary: AppTheme.darkGray,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _customStart = picked.start;
+        _customEnd = picked.end;
+      });
       _loadReport();
     }
   }
@@ -150,20 +203,24 @@ class _ReportScreenState extends State<ReportScreen>
                   icon: Icon(Icons.today, size: 18),
                 ),
                 ButtonSegment(
-                  value: ReportPeriod.weekly,
-                  label: Text('Mingguan'),
-                  icon: Icon(Icons.date_range, size: 18),
-                ),
-                ButtonSegment(
                   value: ReportPeriod.monthly,
                   label: Text('Bulanan'),
                   icon: Icon(Icons.calendar_month, size: 18),
+                ),
+                ButtonSegment(
+                  value: ReportPeriod.custom,
+                  label: Text('Custom'),
+                  icon: Icon(Icons.date_range, size: 18),
                 ),
               ],
               selected: {_selectedPeriod},
               onSelectionChanged: (selection) {
                 setState(() => _selectedPeriod = selection.first);
-                _loadReport();
+                if (selection.first == ReportPeriod.custom) {
+                  _pickCustomDateRange();
+                } else {
+                  _loadReport();
+                }
               },
             ),
           ),
@@ -174,30 +231,33 @@ class _ReportScreenState extends State<ReportScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 28),
-                  onPressed: () {
-                    setState(() {
-                      switch (_selectedPeriod) {
-                        case ReportPeriod.daily:
-                          _selectedDate = _selectedDate
-                              .subtract(const Duration(days: 1));
-                          break;
-                        case ReportPeriod.weekly:
-                          _selectedDate = _selectedDate
-                              .subtract(const Duration(days: 7));
-                          break;
-                        case ReportPeriod.monthly:
-                          _selectedDate = DateTime(
-                              _selectedDate.year, _selectedDate.month - 1, 1);
-                          break;
-                      }
-                    });
-                    _loadReport();
-                  },
-                ),
+                if (_selectedPeriod != ReportPeriod.custom)
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, size: 28),
+                    onPressed: () {
+                      setState(() {
+                        switch (_selectedPeriod) {
+                          case ReportPeriod.daily:
+                            _selectedDate = _selectedDate
+                                .subtract(const Duration(days: 1));
+                            break;
+                          case ReportPeriod.monthly:
+                            _selectedDate = DateTime(
+                                _selectedDate.year, _selectedDate.month - 1, 1);
+                            break;
+                          case ReportPeriod.custom:
+                            break;
+                        }
+                      });
+                      _loadReport();
+                    },
+                  )
+                else
+                  const SizedBox(width: 48),
                 GestureDetector(
-                  onTap: _pickDateRange,
+                  onTap: _selectedPeriod == ReportPeriod.custom
+                      ? _pickCustomDateRange
+                      : _pickDate,
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -216,7 +276,7 @@ class _ReportScreenState extends State<ReportScreen>
                         Text(
                           _getPeriodLabel(),
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.primaryYellow,
                           ),
@@ -225,31 +285,71 @@ class _ReportScreenState extends State<ReportScreen>
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 28),
-                  onPressed: () {
-                    setState(() {
-                      switch (_selectedPeriod) {
-                        case ReportPeriod.daily:
-                          _selectedDate =
-                              _selectedDate.add(const Duration(days: 1));
-                          break;
-                        case ReportPeriod.weekly:
-                          _selectedDate =
-                              _selectedDate.add(const Duration(days: 7));
-                          break;
-                        case ReportPeriod.monthly:
-                          _selectedDate = DateTime(
-                              _selectedDate.year, _selectedDate.month + 1, 1);
-                          break;
-                      }
-                    });
-                    _loadReport();
-                  },
-                ),
+                if (_selectedPeriod != ReportPeriod.custom)
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, size: 28),
+                    onPressed: () {
+                      setState(() {
+                        switch (_selectedPeriod) {
+                          case ReportPeriod.daily:
+                            _selectedDate =
+                                _selectedDate.add(const Duration(days: 1));
+                            break;
+                          case ReportPeriod.monthly:
+                            _selectedDate = DateTime(
+                                _selectedDate.year, _selectedDate.month + 1, 1);
+                            break;
+                          case ReportPeriod.custom:
+                            break;
+                        }
+                      });
+                      _loadReport();
+                    },
+                  )
+                else
+                  const SizedBox(width: 48),
               ],
             ),
           ),
+
+          // Item filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Consumer<ItemProvider>(
+              builder: (context, itemProvider, _) {
+                final items = itemProvider.items;
+                return DropdownButtonFormField<int?>(
+                  initialValue: _selectedItemId,
+                  decoration: InputDecoration(
+                    labelText: 'Filter Barang',
+                    prefixIcon: const Icon(Icons.filter_list_rounded),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    isDense: true,
+                  ),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('Semua Barang'),
+                    ),
+                    ...items.map((item) => DropdownMenuItem<int?>(
+                          value: item.id,
+                          child: Text(item.name),
+                        )),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedItemId = value);
+                    _loadReport();
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // Content
           if (_isLoading)
@@ -262,7 +362,7 @@ class _ReportScreenState extends State<ReportScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
-                      // Summary row
+                      // Summary row 1
                       Row(
                         children: [
                           Expanded(
@@ -287,16 +387,103 @@ class _ReportScreenState extends State<ReportScreen>
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _SummaryCard(
-                        icon: Icons.trending_up_rounded,
-                        iconColor: AppTheme.primaryYellow,
-                        label: 'Rata-rata per Transaksi',
-                        value: _transactionCount > 0
-                            ? formatRupiah(_totalRevenue / _transactionCount)
-                            : 'Rp 0',
-                        valueColor: AppTheme.primaryYellow,
+                      // Summary row 2
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SummaryCard(
+                              icon: Icons.shopping_bag_rounded,
+                              iconColor: Colors.orange,
+                              label: 'Produk Terjual',
+                              value: '$_totalQuantitySold',
+                              valueColor: Colors.orangeAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _SummaryCard(
+                              icon: Icons.trending_up_rounded,
+                              iconColor: AppTheme.primaryYellow,
+                              label: 'Rata-rata/Transaksi',
+                              value: _transactionCount > 0
+                                  ? formatRupiah(
+                                      _totalRevenue / _transactionCount)
+                                  : 'Rp 0',
+                              valueColor: AppTheme.primaryYellow,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 20),
+
+                      // Item sales breakdown
+                      if (_itemSales.isNotEmpty && _selectedItemId == null) ...[
+                        Row(
+                          children: [
+                            const Text(
+                              'Penjualan per Barang',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${_itemSales.where((s) => (s['qty_sold'] as num) > 0).length} barang terjual',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...List.generate(
+                          _itemSales
+                              .where((s) => (s['qty_sold'] as num) > 0)
+                              .length,
+                          (i) {
+                            final sale = _itemSales
+                                .where((s) => (s['qty_sold'] as num) > 0)
+                                .toList()[i];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              child: ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  backgroundColor: AppTheme.primaryYellow
+                                      .withValues(alpha: 0.15),
+                                  radius: 18,
+                                  child: Text(
+                                    '${sale['qty_sold']}',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryYellow,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  sale['name'] as String,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14),
+                                ),
+                                trailing: Text(
+                                  formatRupiah(
+                                      (sale['total_revenue'] as num)
+                                          .toDouble()),
+                                  style: TextStyle(
+                                    color: Colors.greenAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // Transaction list for the period
                       if (_transactions.isNotEmpty) ...[
                         Row(

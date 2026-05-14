@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import '../models/item.dart';
 import '../providers/item_provider.dart';
 import '../widgets/currency_formatter.dart';
@@ -67,19 +71,7 @@ class ItemManagementScreen extends StatelessWidget {
                   margin:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          AppTheme.primaryYellow.withValues(alpha: 0.15),
-                      child: Text(
-                        item.name.isNotEmpty
-                            ? item.name[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: AppTheme.primaryYellow,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    leading: _buildItemAvatar(item),
                     title: Text(
                       item.name,
                       style: const TextStyle(fontWeight: FontWeight.w600),
@@ -117,6 +109,30 @@ class ItemManagementScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildItemAvatar(Item item) {
+    if (item.imagePath != null && File(item.imagePath!).existsSync()) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(item.imagePath!),
+          width: 44,
+          height: 44,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return CircleAvatar(
+      backgroundColor: AppTheme.primaryYellow.withValues(alpha: 0.15),
+      child: Text(
+        item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: AppTheme.primaryYellow,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   void _showItemDialog(BuildContext context, {Item? item}) {
     final nameController = TextEditingController(text: item?.name ?? '');
     final priceController = TextEditingController(
@@ -124,87 +140,181 @@ class ItemManagementScreen extends StatelessWidget {
     );
     final isEditing = item != null;
     final formKey = GlobalKey<FormState>();
+    String? selectedImagePath = item?.imagePath;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              isEditing ? Icons.edit_rounded : Icons.add_circle_rounded,
-              color: AppTheme.primaryYellow,
-            ),
-            const SizedBox(width: 8),
-            Text(isEditing ? 'Edit Barang' : 'Tambah Barang'),
-          ],
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
             children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nama Barang',
-                  prefixIcon: Icon(Icons.label_rounded),
-                ),
-                textCapitalization: TextCapitalization.words,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Nama barang wajib diisi';
-                  }
-                  return null;
-                },
+              Icon(
+                isEditing ? Icons.edit_rounded : Icons.add_circle_rounded,
+                color: AppTheme.primaryYellow,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Harga',
-                  prefixIcon: Icon(Icons.attach_money_rounded),
-                  prefixText: 'Rp ',
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Harga wajib diisi';
-                  }
-                  if (double.tryParse(value) == null ||
-                      double.parse(value) <= 0) {
-                    return 'Harga harus lebih dari 0';
-                  }
-                  return null;
-                },
-              ),
+              const SizedBox(width: 8),
+              Text(isEditing ? 'Edit Barang' : 'Tambah Barang'),
             ],
           ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Image picker
+                  GestureDetector(
+                    onTap: () async {
+                      final picker = ImagePicker();
+                      final picked = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 800,
+                        maxHeight: 800,
+                        imageQuality: 85,
+                      );
+                      if (picked != null) {
+                        final appDir = await getApplicationDocumentsDirectory();
+                        final fileName =
+                            'item_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}';
+                        final savedFile =
+                            await File(picked.path).copy('${appDir.path}/$fileName');
+                        setDialogState(() {
+                          selectedImagePath = savedFile.path;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryYellow.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.primaryYellow.withValues(alpha: 0.3),
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: selectedImagePath != null &&
+                              File(selectedImagePath!).existsSync()
+                          ? Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(selectedImagePath!),
+                                    width: double.infinity,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setDialogState(() {
+                                        selectedImagePath = null;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close,
+                                          size: 16, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo_rounded,
+                                    size: 32,
+                                    color: AppTheme.primaryYellow
+                                        .withValues(alpha: 0.6)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tambah Foto (Opsional)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.primaryYellow
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama Barang',
+                      prefixIcon: Icon(Icons.label_rounded),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Nama barang wajib diisi';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Harga',
+                      prefixIcon: Icon(Icons.attach_money_rounded),
+                      prefixText: 'Rp ',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Harga wajib diisi';
+                      }
+                      if (double.tryParse(value) == null ||
+                          double.parse(value) <= 0) {
+                        return 'Harga harus lebih dari 0';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                final provider = context.read<ItemProvider>();
+                final newItem = Item(
+                  id: item?.id,
+                  name: nameController.text.trim(),
+                  price: double.parse(priceController.text),
+                  imagePath: selectedImagePath,
+                );
+                if (isEditing) {
+                  provider.updateItem(newItem);
+                } else {
+                  provider.addItem(newItem);
+                }
+                Navigator.pop(ctx);
+              },
+              child: Text(isEditing ? 'Simpan' : 'Tambah'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              final provider = context.read<ItemProvider>();
-              final newItem = Item(
-                id: item?.id,
-                name: nameController.text.trim(),
-                price: double.parse(priceController.text),
-              );
-              if (isEditing) {
-                provider.updateItem(newItem);
-              } else {
-                provider.addItem(newItem);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(isEditing ? 'Simpan' : 'Tambah'),
-          ),
-        ],
       ),
     );
   }
