@@ -133,7 +133,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           _selectedDate = DateTime(
                             _selectedDate.year,
                             _selectedDate.month - 1,
-                            _selectedDate.day,
+                            1,
                           );
                           break;
                       }
@@ -179,7 +179,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           _selectedDate = DateTime(
                             _selectedDate.year,
                             _selectedDate.month + 1,
-                            _selectedDate.day,
+                            1,
                           );
                           break;
                       }
