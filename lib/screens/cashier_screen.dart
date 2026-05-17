@@ -479,20 +479,22 @@ class _ItemCard extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                          fontSize: 16,
                         ),
                         maxLines: hasImage ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
