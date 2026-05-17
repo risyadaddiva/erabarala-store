@@ -482,11 +482,12 @@ class _ItemCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 6),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         name,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

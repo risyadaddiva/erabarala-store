@@ -152,6 +152,39 @@ class _SplashScreenState extends State<SplashScreen>
           },
         ),
       ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.only(bottom: 32),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: RichText(
+            textAlign: TextAlign.center,
+            text: const TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 1.2,
+              ),
+              children: [
+                TextSpan(
+                  text: 'made with passion by ',
+                  style: TextStyle(
+                    color: Color(0xFF6B5B00),
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                TextSpan(
+                  text: 'wanderlust',
+                  style: TextStyle(
+                    color: Color(0xFF3A3A3A),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
